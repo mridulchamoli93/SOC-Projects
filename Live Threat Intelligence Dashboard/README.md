@@ -75,7 +75,7 @@ It features a **3D attack-globe**, **live alert feed**, **IOC database**, **auto
 # 🏛️ Project Structure
 
 ```
-thanatos/
+Live Threat Intelligence Dashboard/
 │ app.py                          ← Flask entrypoint :contentReference[oaicite:0]{index=0}
 │ dashboard_opt.py                ← Dashboard data provider :contentReference[oaicite:1]{index=1}
 │ threat_processor_opt.py         ← Core intelligence engine :contentReference[oaicite:2]{index=2}
@@ -101,8 +101,8 @@ thanatos/
 ### 1️⃣ Clone the repo
 
 ```bash
-git clone https://github.com/yourname/thanatos.git
-cd thanatos
+git clone https://github.com/mridulchamoli93/SOC-Projects/edit/main/Live%20Threat%20Intelligence%20Dashboard
+cd Live Threat Intelligence Dashboard
 ```
 
 ### 2️⃣ Install dependencies

@@ -1,0 +1,121 @@
+/* static/style.css
+   Animated, polished UI for Thanatos dashboard
+   - balanced neon accents but calmer visuals
+   - globe + charts + live feed animations
+*/
+
+:root{
+  --bg1: #041018;
+  --bg2: #071827;
+  --accent: #4ee5c8;
+  --accent2: #6fb7ff;
+  --danger: #ff6b6b;
+  --muted: #9db7c0;
+  --card: rgba(255,255,255,0.03);
+  --glass: rgba(255,255,255,0.02);
+  --radius: 12px;
+  --shadow: 0 18px 60px rgba(2,6,23,0.6);
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --ease: cubic-bezier(.2,.9,.25,1);
+}
+
+/* base */
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:#d8fbf6;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+.app-hidden{overflow:hidden}
+
+/* boot screen */
+.boot-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(2,6,10,0.95), rgba(2,6,10,0.98));z-index:99999}
+.boot-box{width:760px;max-width:94%;padding:20px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03)}
+.boot-title{color:var(--accent);font-weight:800;margin-bottom:8px}
+.boot-text{height:130px;overflow:auto;color:var(--accent2);font-family:var(--mono);font-size:13px;line-height:1.25}
+.boot-progress{height:8px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden;margin-top:12px}
+.boot-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+/* header */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.02);position:sticky;top:0;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);backdrop-filter: blur(6px);z-index:20}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:900;color:#021219;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+.brand h1{margin:0;font-size:1.05rem}
+.muted{color:var(--muted);font-size:0.9rem}
+
+/* controls */
+.controls{display:flex;gap:10px;align-items:center}
+.controls input{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:var(--accent2);min-width:280px}
+.btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:var(--accent);cursor:pointer;font-weight:700}
+.btn.neon{box-shadow:0 8px 40px rgba(78,229,200,0.06);background:linear-gradient(90deg, rgba(78,229,200,0.04), rgba(111,183,255,0.02))}
+
+/* layout */
+.grid{display:grid;grid-template-columns:1fr 420px;gap:18px;padding:18px}
+.left{display:flex;flex-direction:column;gap:12px}
+.right{display:flex;flex-direction:column;gap:12px}
+
+/* stats */
+.top-stats{display:flex;gap:12px}
+.stat{flex:1;background:var(--card);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);box-shadow:var(--shadow)}
+.label{color:var(--muted);font-size:0.9rem}
+.big{font-size:1.6rem;color:var(--accent);font-weight:800}
+.small{font-size:0.85rem}
+
+/* charts */
+.charts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.35));padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);box-shadow:var(--shadow)}
+.chart-card h4{margin:0 0 8px 0}
+
+/* controls row */
+.controls-row{display:flex;gap:8px;align-items:center}
+.table-card{padding:12px}
+
+/* table */
+.table-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+.table-actions{display:flex;gap:8px;align-items:center}
+.table-wrap{max-height:360px;overflow:auto}
+.data{width:100%;border-collapse:collapse;font-size:0.95rem}
+.data thead th{position:sticky;top:0;background:linear-gradient(180deg, rgba(0,0,0,0.2), transparent);padding:10px;color:var(--muted)}
+.data td{padding:10px;border-top:1px solid rgba(255,255,255,0.02)}
+.mono{font-family:var(--mono)}
+.badge{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.02)}
+.badge.high{background:linear-gradient(90deg,#ff6b6b,#ff9b6b);color:white}
+.row-check{transform:scale(1.05)}
+.tiny{padding:6px 8px}
+
+/* globe */
+.globe-card{position:relative;padding:0;height:360px;overflow:hidden}
+.globe{width:100%;height:360px}
+.globe-overlay{position:absolute;left:12px;top:12px;display:flex;gap:10px;align-items:center}
+.globe-overlay .muted{font-size:0.85rem}
+.btn.small{padding:6px 8px}
+
+/* live feed */
+.feed-card{padding:12px}
+.feed-header{display:flex;justify-content:space-between;align-items:center}
+.feed-list{list-style:none;margin:10px 0 0 0;padding:0;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.feed-item{display:flex;flex-direction:column;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.02)}
+.feed-item .time{font-size:0.78rem;color:var(--muted)}
+.feed-item .meta{display:flex;gap:8px;align-items:center}
+
+/* ip panel */
+.ip-card{min-height:120px;padding:12px}
+.ip-big{font-weight:800;color:var(--accent);font-size:1.1rem}
+.btn-row{display:flex;gap:8px;margin-top:8px}
+
+/* footer */
+.footer{padding:12px 18px;color:var(--muted)}
+
+/* toasts */
+.toasts{position:fixed;left:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+.toast{background:rgba(0,0,0,0.7);padding:10px 14px;border-radius:10px;color:#dffaf7;opacity:0;transform:translateY(8px);transition:all 220ms var(--ease)}
+.toast.show{opacity:1;transform:none}
+.toast.info{border-left:4px solid var(--accent2)}
+.toast.success{border-left:4px solid #8ef3c6}
+.toast.error{border-left:4px solid var(--danger)}
+
+/* minimal responsive */
+@media (max-width: 980px){
+  .grid{grid-template-columns:1fr; padding:12px}
+  .charts{grid-template-columns:1fr;gap:12px}
+  .globe{height:260px}
+}
+
+/* focus accessibility */
+input:focus, button:focus { outline:2px solid rgba(111,183,255,0.12); outline-offset:2px }

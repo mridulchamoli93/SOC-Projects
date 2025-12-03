@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Thanatos · Live Threat Dashboard</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- three.js + three-globe for animated globe -->
+  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
+  <script src="https://unpkg.com/three-globe"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
+
+  <!-- GSAP for polished animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <!-- icons -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta name="description" content="Thanatos live threat dashboard with animated globe and live feed" />
+</head>
+<body class="app-hidden">
+
+  <!-- boot / intro (brief cinematic) -->
+  <div id="boot" class="boot-screen" aria-hidden="true">
+    <div class="boot-box">
+      <div class="boot-title">INITIALIZING THANATOS CORE</div>
+      <pre id="bootText" class="boot-text"></pre>
+      <div class="boot-progress"><div id="bootBar" class="boot-bar"></div></div>
+    </div>
+  </div>
+
+  <!-- header -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">☠️</div>
+      <div>
+        <h1>THANATOS</h1>
+        <div class="muted">Live threat intelligence</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <input id="searchIp" placeholder="Search IP (Ctrl/Cmd+K) — press Enter" aria-label="Search IP">
+      <button id="btnRun" class="btn neon">Run Scan <i class='bx bx-play'></i></button>
+      <div id="status" class="status muted">status: idle</div>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- left: stats, charts, tables -->
+    <section class="left">
+      <div class="top-stats">
+        <div class="stat">
+          <div class="label">IOCs</div>
+          <div id="iocCount" class="big">—</div>
+          <div class="muted small">tracked</div>
+        </div>
+        <div class="stat">
+          <div class="label">ALERTS</div>
+          <div id="alertCount" class="big">—</div>
+          <div class="muted small">recent</div>
+        </div>
+        <div class="stat">
+          <div class="label">HIGH</div>
+          <div id="highCount" class="big">—</div>
+          <div class="muted small">≥ 80</div>
+        </div>
+        <div class="stat">
+          <div class="label">LAST SCAN</div>
+          <div id="lastScan" class="big">—</div>
+          <div class="muted small">timestamp</div>
+        </div>
+      </div>
+
+      <div class="charts">
+        <div class="card">
+          <h4>Alerts over time</h4>
+          <canvas id="alertsChart" height="140"></canvas>
+        </div>
+
+        <div class="card">
+          <h4>Top IOCs</h4>
+          <canvas id="topChart" height="140"></canvas>
+        </div>
+
+        <div class="card">
+          <h4>Confidence distribution</h4>
+          <canvas id="distChart" height="140"></canvas>
+        </div>
+      </div>
+
+      <div class="controls-row">
+        <input id="tableFilter" placeholder="Filter table (ip or country)"/>
+        <select id="filterConf">
+          <option value="0">Min conf: 0</option>
+          <option value="50">Min conf: 50</option>
+          <option value="80">Min conf: 80</option>
+        </select>
+        <button id="clearFilters" class="btn small">Clear</button>
+      </div>
+
+      <div class="card table-card">
+        <div class="table-head">
+          <h4>IOCs</h4>
+          <div class="table-actions">
+            <label><input id="selVisible" type="checkbox"/> select visible</label>
+            <select id="bulkAction">
+              <option value="">Bulk actions</option>
+              <option value="export">Export CSV</option>
+              <option value="remove">Remove (UI)</option>
+            </select>
+            <button id="applyBulk" class="btn small">Apply</button>
+            <button id="exportCsv" class="btn small">Export visible</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="iocsTable" class="data">
+            <thead>
+              <tr>
+                <th></th>
+                <th data-key="ip">IP ▴▾</th>
+                <th data-key="conf">Conf ▴▾</th>
+                <th data-key="country">Country ▴▾</th>
+                <th data-key="last">Last seen ▴▾</th>
+                <th>actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- right: globe + live feed + ip panel -->
+    <aside class="right">
+      <div class="card globe-card">
+        <div id="globeContainer" class="globe"></div>
+        <div class="globe-overlay">
+          <div id="globeStats" class="muted small">0 arcs • 0 high</div>
+          <button id="toggleGlobe" class="btn small">Pause Globe</button>
+        </div>
+      </div>
+
+      <div class="card feed-card">
+        <div class="feed-header">
+          <h4>Live feed</h4>
+          <div class="muted small">incoming alerts</div>
+        </div>
+        <ul id="liveFeed" class="feed-list"></ul>
+      </div>
+
+      <div id="ipPanel" class="card ip-card">
+        <div id="ipPlaceholder" class="muted">Click IP in the table or search to inspect</div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer muted">
+    <span id="uptime">uptime 0s</span> • <span id="connState">connected</span>
+  </footer>
+
+  <!-- toast container -->
+  <div id="toastWrap" class="toasts"></div>
+
+  <!-- injected server-side initial data -->
+  <script>
+    const INITIAL = {
+      iocs: {{ iocs|tojson|safe }},
+      alerts: {{ alerts|tojson|safe }}
+    };
+  </script>
+
+  <!-- main JS: charts, globe, live feed, polling -->
+  <script>
+  (function(){
+    /* --------------------
+       Utilities
+    -------------------- */
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    function toast(msg, kind='info', ttl=2400){
+      const wrap = document.getElementById('toastWrap');
+      const el = document.createElement('div');
+      el.className = 'toast ' + kind;
+      el.textContent = msg;
+      wrap.appendChild(el);
+      requestAnimationFrame(()=> el.classList.add('show'));
+      setTimeout(()=> { el.classList.remove('show'); setTimeout(()=> el.remove(), 300); }, ttl);
+    }
+    function downloadCSV(filename, text){ const a = document.createElement('a'); const blob = new Blob([text], {type:'text/csv'}); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=> URL.revokeObjectURL(a.href), 500); }
+
+    /* --------------------
+       App state & refs
+    -------------------- */
+    const state = {
+      iocs: INITIAL.iocs || [],
+      alerts: INITIAL.alerts || [],
+      lastAlertIds: new Set((INITIAL.alerts||[]).map(a=>a.id)),
+      globeRunning: true
+    };
+
+    const refs = {
+      iocCount: $('#iocCount'), alertCount: $('#alertCount'), highCount: $('#highCount'), lastScan: $('#lastScan'),
+      alertsChart: document.getElementById('alertsChart'), topChart: document.getElementById('topChart'), distChart: document.getElementById('distChart'),
+      tableBody: $('#iocsTable tbody'),
+      filterInput: $('#tableFilter'), filterConf: $('#filterConf'),
+      liveFeed: $('#liveFeed'), ipPanel: $('#ipPanel'), searchIp: $('#searchIp'),
+      btnRun: $('#btnRun'), connState: $('#connState'), uptime: $('#uptime'), globeStats: $('#globeStats'), toggleGlobe: $('#toggleGlobe'),
+      toastWrap: $('#toastWrap')
+    };
+
+    /* --------------------
+       Charts (Chart.js) - create once, update in-place
+    -------------------- */
+    let chartAlerts, chartTop, chartDist;
+    function initCharts(){
+      const ctxA = refs.alertsChart.getContext('2d');
+      chartAlerts = new Chart(ctxA, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label:'Alerts', data: [], borderWidth:2, fill:true, tension:0.25 }]},
+        options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+      });
+
+      const ctxT = refs.topChart.getContext('2d');
+      chartTop = new Chart(ctxT, {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label:'Confidence', data: [] }]},
+        options: { indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{max:100}}}
+      });
+
+      const ctxD = refs.distChart.getContext('2d');
+      chartDist = new Chart(ctxD, {
+        type: 'doughnut',
+        data: { labels:['Low','Med','High'], datasets: [{ data:[0,0,0] }]},
+        options: { plugins:{legend:{position:'bottom'}}}
+      });
+    }
+
+    function updateCharts(iocs, alerts){
+      // alerts timeline: last 30 timestamps simplified
+      const times = (alerts || []).slice(-30).map(a => new Date(a.timestamp || Date.now()).toLocaleTimeString());
+      const counts = times.map(_ => 1);
+      chartAlerts.data.labels = times.length ? times : ['no data'];
+      chartAlerts.data.datasets[0].data = counts.length ? counts : [0];
+      chartAlerts.update('none');
+
+      // top chart
+      const top = (iocs||[]).slice().sort((a,b)=> (b.abuse_confidence||0) - (a.abuse_confidence||0)).slice(0,8);
+      chartTop.data.labels = top.map(x => x.ip_address);
+      chartTop.data.datasets[0].data = top.map(x => x.abuse_confidence || 0);
+      chartTop.update('none');
+
+      // distribution
+      const low = (iocs||[]).filter(i => (i.abuse_confidence||0) < 50).length;
+      const med = (iocs||[]).filter(i => (i.abuse_confidence||0) >=50 && (i.abuse_confidence||0) < 80).length;
+      const high = (iocs||[]).filter(i => (i.abuse_confidence||0) >=80).length;
+      chartDist.data.datasets[0].data = [low,med,high];
+      chartDist.update('none');
+    }
+
+    /* --------------------
+       Table rendering (efficient)
+    -------------------- */
+    let currentSort = { key: 'conf', dir: -1 };
+    function renderTable(iocs){
+      const tbody = refs.tableBody;
+      const frag = document.createDocumentFragment();
+      const q = (refs.filterInput.value || '').toLowerCase();
+      const minConf = Number(refs.filterConf.value || 0);
+
+      const rows = (iocs || []).filter(i => (i.abuse_confidence||0) >= minConf)
+        .filter(i => !q || (i.ip_address||'').toLowerCase().includes(q) || (i.country_code||'').toLowerCase().includes(q));
+
+      rows.sort((a,b) => {
+        let av = currentSort.key === 'ip' ? (a.ip_address||'') : currentSort.key === 'country' ? (a.country_code||'') : currentSort.key === 'last' ? (a.last_seen||'') : (a.abuse_confidence||0);
+        let bv = currentSort.key === 'ip' ? (b.ip_address||'') : currentSort.key === 'country' ? (b.country_code||'') : currentSort.key === 'last' ? (b.last_seen||'') : (b.abuse_confidence||0);
+        if(av < bv) return -1 * currentSort.dir;
+        if(av > bv) return 1 * currentSort.dir;
+        return 0;
+      });
+
+      rows.forEach(i => {
+        const tr = document.createElement('tr');
+        tr.dataset.ip = i.ip_address || '';
+        tr.dataset.conf = i.abuse_confidence || 0;
+        tr.dataset.country = i.country_code || '';
+        tr.dataset.last = i.last_seen || '';
+        tr.innerHTML = `
+          <td><input class="row-check" type="checkbox" /></td>
+          <td class="mono">${i.ip_address || '—'}</td>
+          <td><span class="badge ${ (i.abuse_confidence||0) >= 80 ? 'high':'' }">${i.abuse_confidence || 0}</span></td>
+          <td>${i.country_code || '—'}</td>
+          <td class="muted small">${i.last_seen || '—'}</td>
+          <td><button class="btn tiny inspect">Inspect</button> <button class="btn tiny copy">Copy</button></td>
+        `;
+        frag.appendChild(tr);
+      });
+
+      tbody.innerHTML = '';
+      tbody.appendChild(frag);
+    }
+
+    /* --------------------
+       Globe (three-globe) initialization + animated arcs
+       - Optimized: init once, reuse arcsData updates
+    -------------------- */
+    let globeState = { globe: null, renderer: null, scene: null, camera: null, arcs: [] };
+
+    async function initGlobe(){
+      try {
+        const container = document.getElementById('globeContainer');
+        container.innerHTML = '';
+        const width = container.clientWidth || 520;
+        const height = container.clientHeight || 360;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(30, width/height, 0.1, 1000);
+        camera.position.z = 200;
+
+        const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+        renderer.setSize(width, height);
+        container.appendChild(renderer.domElement);
+
+        const globe = new ThreeGlobe({ animateIn: true })
+          .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+          .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png');
+
+        scene.add(globe);
+        scene.add(new THREE.AmbientLight(0x888888));
+        const directional = new THREE.DirectionalLight(0xffffff, 0.6);
+        directional.position.set(0, 0, 100);
+        scene.add(directional);
+
+        globeState = { globe, renderer, scene, camera, arcs:[] };
+
+        // load world topo for polygon shading
+        const topo = await (await fetch('https://unpkg.com/world-atlas@2.0.2/world/110m.json')).json();
+        const land = topojson.feature(topo, topo.objects.countries);
+        globe.polygonsData(land.features).polygonCapColor(()=>'rgba(255,255,255,0.02)').polygonSideColor(()=> 'rgba(0,0,0,0.05)').polygonAltitude(0.01);
+
+        // animate loop
+        (function animate(){
+          if(!globeState.renderer) return;
+          globe.rotation.y += 0.0008;
+          globeState.renderer.render(globeState.scene, globeState.camera);
+          requestAnimationFrame(animate);
+        })();
+
+        // responsive
+        window.addEventListener('resize', () => {
+          const w = container.clientWidth || 520;
+          const h = container.clientHeight || 360;
+          globeState.renderer.setSize(w,h);
+          globeState.camera.aspect = w/h;
+          globeState.camera.updateProjectionMatrix();
+        });
+
+      } catch(e){ console.error('Globe init error', e); document.getElementById('globeContainer').textContent = 'Globe failed to initialize'; }
+    }
+
+    // build arc objects from iocs that contain lat/lon
+    function buildArcsFromIOCs(iocs){
+      const arcs = [];
+      (iocs||[]).forEach(i => {
+        const lat = Number(i.latitude || i.lat || 0);
+        const lng = Number(i.longitude || i.lon || 0);
+        if(!lat || !lng) return;
+        // simulate attacker origin
+        const origin = { lat: lat + (Math.random()*40 - 20), lng: lng + (Math.random()*80 - 40) };
+        arcs.push({
+          startLat: origin.lat,
+          startLng: origin.lng,
+          endLat: lat,
+          endLng: lng,
+          color: i.abuse_confidence >= 80 ? 'red' : i.abuse_confidence >=50 ? 'orange' : 'lightblue',
+          size: Math.max(0.2, (i.abuse_confidence||0)/40),
+          ip: i.ip_address,
+          conf: i.abuse_confidence || 0
+        });
+      });
+      return arcs;
+    }
+
+    function updateGlobeArcs(iocs){
+      if(!globeState.globe) return;
+      const arcs = buildArcsFromIOCs(iocs);
+      globeState.arcs = arcs;
+      globeState.globe.arcsData(arcs)
+        .arcColor(d => d.color)
+        .arcDashLength(0.4)
+        .arcDashGap(0.9)
+        .arcDashInitialGap(() => Math.random())
+        .arcDashAnimateTime(() => 2000)
+        .arcStroke(d => d.size * 1.5);
+      refs.globeStats.textContent = `${arcs.length} arcs • ${iocs.filter(i=> (i.abuse_confidence||0) >= 80).length} high`;
+    }
+
+    /* --------------------
+       Live feed: efficiently append + animate new alerts
+    -------------------- */
+    function pushFeedAlert(alert){
+      const ul = refs.liveFeed;
+      const li = document.createElement('li');
+      li.className = 'feed-item';
+      li.innerHTML = `<div class="time">${new Date(alert.timestamp||Date.now()).toLocaleTimeString()}</div>
+                      <div class="meta"><span class="ip mono">${alert.ip_address}</span> • conf <strong>${alert.abuse_confidence||0}</strong></div>
+                      <div class="msg muted small">${alert.message || alert.source || ''}</div>`;
+      ul.prepend(li);
+      // animate entry with GSAP for smoothness
+      gsap.fromTo(li, { opacity:0, y:10 }, { opacity:1, y:0, duration:0.45, ease:'power3.out' });
+      // trim list
+      while(ul.children.length > 40) ul.removeChild(ul.lastChild);
+    }
+
+    /* --------------------
+       Polling and live-diffing
+    -------------------- */
+    let pollInterval = 3000; // 3s
+    let pollTimer = null;
+
+    async function fetchData(){
+      try {
+        const r = await fetch('{{ url_for("api_data") }}', { cache:'no-store' });
+        if(!r.ok) throw new Error('network');
+        const payload = await r.json();
+        // replace state arrays with payload
+        const newIOCs = payload.iocs || [];
+        const newAlerts = payload.alerts || [];
+
+        // detect new alerts by id
+        const seen = state.lastAlertIds;
+        newAlerts.slice().reverse().forEach(a => {
+          if(!a || !a.id) return;
+          if(!seen.has(a.id)){ // new
+            seen.add(a.id);
+            pushFeedAlert(a);
+            toast(`New alert: ${a.ip_address} (conf ${a.abuse_confidence||0})`, 'info', 2000);
+          }
+        });
+
+        state.iocs = newIOCs;
+        state.alerts = newAlerts;
+
+        // update counts
+        refs.iocCount.textContent = state.iocs.length;
+        refs.alertCount.textContent = state.alerts.length;
+        refs.highCount.textContent = state.iocs.filter(i=> (i.abuse_confidence||0) >= 80).length;
+        refs.lastScan.textContent = new Date().toLocaleString();
+
+        // update charts & table & globe (throttled)
+        updateCharts(state.iocs, state.alerts);
+        renderTable(state.iocs);
+        if(state.globeRunning) updateGlobeArcs(state.iocs);
+
+        refs.connState.textContent = 'connected';
+      } catch(err){
+        console.warn('poll error', err);
+        refs.connState.textContent = 'offline';
+        toast('Connection error', 'error', 1800);
+      }
+    }
+
+    /* --------------------
+       Actions: search, run scan, table interactions
+    -------------------- */
+    function wireUI(){
+      // search enter
+      refs.searchIp.addEventListener('keydown', (e) => {
+        if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); refs.searchIp.focus(); return; }
+        if(e.key === 'Enter'){ const ip = refs.searchIp.value.trim(); if(ip) queryIP(ip); }
+      });
+
+      // run scan
+      refs.btnRun.addEventListener('click', async () => {
+        refs.status.textContent = 'status: scanning…';
+        setTimeout(()=> refs.status.textContent = 'status: idle', 2500);
+        try {
+          await fetch('{{ url_for("run_now") }}', { method: 'POST' });
+          toast('Scan started', 'success', 1600);
+        } catch(e){ toast('Scan request failed', 'error'); }
+      });
+
+      // table delegates: inspect & copy
+      refs.tableBody.addEventListener('click', (e) => {
+        const tr = e.target.closest('tr');
+        if(!tr) return;
+        if(e.target.classList.contains('inspect')){ queryIP(tr.dataset.ip); }
+        else if(e.target.classList.contains('copy')){ navigator.clipboard.writeText(tr.dataset.ip||'').then(()=> toast('Copied')); }
+      });
+
+      // export visible CSV
+      $('#exportCsv').addEventListener('click', () => {
+        const rows = $$('#iocsTable tbody tr').filter(r => r.style.display !== 'none');
+        const csv = rows.map(r => [r.dataset.ip, r.dataset.conf, r.dataset.country, r.dataset.last].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+        downloadCSV(`iocs_${Date.now()}.csv`, 'IP,Conf,Country,Last\n' + csv);
+        toast('Exported CSV', 'success');
+      });
+
+      // bulk apply
+      $('#applyBulk').addEventListener('click', () => {
+        const action = $('#bulkAction').value;
+        const rows = $$('#iocsTable tbody tr').filter(r => r.querySelector('.row-check')?.checked);
+        if(!action || !rows.length){ toast('Select rows and action', 'info'); return; }
+        if(action === 'export'){ const csv = rows.map(r => [r.dataset.ip, r.dataset.conf, r.dataset.country, r.dataset.last].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n'); downloadCSV(`iocs_bulk_${Date.now()}.csv`, 'IP,Conf,Country,Last\n' + csv); toast('Exported selected', 'success'); }
+        else if(action === 'remove'){ rows.forEach(r => r.remove()); toast('Removed (UI)', 'info'); }
+      });
+
+      // filter inputs
+      refs.filterInput.addEventListener('input', debounce(()=> renderTable(state.iocs), 220));
+      refs.filterConf.addEventListener('change', () => renderTable(state.iocs));
+      $('#clearFilters').addEventListener('click', () => { refs.filterInput.value = ''; refs.filterConf.value = '0'; renderTable(state.iocs); });
+
+      // header sorting
+      $$('#iocsTable thead th[data-key]').forEach(th => {
+        th.addEventListener('click', () => {
+          const key = th.dataset.key;
+          if(currentSort.key === key) currentSort.dir = -currentSort.dir;
+          else { currentSort.key = key; currentSort.dir = -1; }
+          renderTable(state.iocs);
+        });
+      });
+
+      // toggle globe
+      refs.toggleGlobe.addEventListener('click', () => {
+        state.globeRunning = !state.globeRunning;
+        refs.toggleGlobe.textContent = state.globeRunning ? 'Pause Globe' : 'Resume Globe';
+        if(state.globeRunning) updateGlobeArcs(state.iocs);
+      });
+
+      // table select visible
+      $('#selVisible').addEventListener('change', (e) => {
+        $$('#iocsTable tbody tr').forEach(tr => {
+          if(tr.style.display !== 'none') tr.querySelector('.row-check').checked = e.target.checked;
+        });
+      });
+
+      // small keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); refs.searchIp.focus(); }
+        if(e.key === 'Escape'){ refs.ipPanel.innerHTML = '<div id="ipPlaceholder" class="muted">Click IP in the table or search to inspect</div>'; }
+      });
+    }
+
+    /* --------------------
+       Query single IP details
+    -------------------- */
+    async function queryIP(ip){
+      refs.ipPanel.innerHTML = `<div class="muted">Loading ${ip}…</div>`;
+      try {
+        const rsp = await fetch('{{ url_for("api_query_ip") }}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ip }) });
+        const data = await rsp.json();
+        if(!data || !data.found){ refs.ipPanel.innerHTML = `<div class="err">No data for ${ip}</div>`; return; }
+        const i = data.ioc || {};
+        const alerts = data.alerts || [];
+        refs.ipPanel.innerHTML = `<div class="ip-detail">
+          <div class="ip-big mono">${i.ip_address}</div>
+          <div class="muted small">conf: <strong>${i.abuse_confidence||0}</strong> • ${i.country_code||''}</div>
+          <div class="btn-row">
+            <button class="btn small" id="copyIpBtn">Copy</button>
+            <button class="btn small" id="zoomIpBtn">Zoom to</button>
+          </div>
+          <div class="alerts small muted">${alerts.length ? '<ul>' + alerts.map(a=>`<li>${a.timestamp||''} — conf ${a.abuse_confidence}</li>`).join('') + '</ul>' : 'No recent alerts'}</div>
+        </div>`;
+        $('#copyIpBtn').addEventListener('click', ()=> navigator.clipboard.writeText(i.ip_address||'').then(()=> toast('Copied')));
+        $('#zoomIpBtn').addEventListener('click', ()=> {
+          const lat = Number(i.latitude || 0), lon = Number(i.longitude || 0);
+          if(!lat||!lon){ toast('No geo for this IP', 'info'); return; }
+          // move camera to location (approx)
+          if(globeState.camera){
+            const phi = (90 - lat) * Math.PI/180;
+            const theta = (lon + 180) * Math.PI/180;
+            const r = 200;
+            const x = -r * Math.sin(phi) * Math.cos(theta);
+            const y = r * Math.cos(phi);
+            const z = r * Math.sin(phi) * Math.sin(theta);
+            gsap.to(globeState.camera.position, { x: x*1.2, y: y*1.2, z: z*1.2, duration: 1.25, ease: 'power2.inOut' });
+            toast('Globe zoomed', 'success', 1000);
+          }
+        });
+      } catch(e){ refs.ipPanel.innerHTML = `<div class="err">Query failed</div>`; console.error(e); }
+    }
+
+    /* --------------------
+       Helpers: debounce
+    -------------------- */
+    function debounce(fn, ms=200){ let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=> fn(...a), ms); }; }
+
+    /* --------------------
+       Boot animation then init
+    -------------------- */
+    async function runBootAndInit(){
+      // brief typing + progress
+      const boot = document.getElementById('boot');
+      boot.style.display = 'flex';
+      const text = document.getElementById('bootText');
+      const bar = document.getElementById('bootBar');
+      const lines = ['INITIALIZING THANATOS CORE…','LOADING MODELS…','CONNECTING OSINT FEEDS…','VERIFYING KEYS…','SPAWNING VISUALS…'];
+      let cursor = 0;
+      for(let i=0;i<lines.length;i++){
+        await typeLine(lines[i], text);
+        bar.style.width = `${((i+1)/lines.length) * 100}%`;
+        await new Promise(r=>setTimeout(r, 280));
+      }
+      await new Promise(r=>setTimeout(r, 500));
+      gsap.to(boot, { opacity:0, duration:0.7, onComplete: ()=> boot.remove() });
+      document.body.classList.remove('app-hidden');
+
+      // initialize components
+      initCharts();
+      await initGlobe();
+      renderTable(state.iocs);
+      updateCharts(state.iocs, state.alerts);
+      updateGlobeArcs(state.iocs);
+      wireUI();
+
+      // start polling
+      fetchData();
+      pollTimer = setInterval(fetchData, pollInterval);
+
+      // uptime counter
+      let start = Date.now();
+      setInterval(()=> { const s = Math.floor((Date.now() - start)/1000); $('#uptime').textContent = `uptime ${s}s`; }, 1000);
+    }
+
+    function typeLine(line, el){ return new Promise(resolve => {
+      let i=0; const iv = setInterval(()=> {
+        i++; el.textContent = line.slice(0,i) + (i % 2 ? '_' : '');
+        if(i >= line.length){ clearInterval(iv); el.textContent += '\\n'; resolve(); }
+      }, 14);
+    }); }
+
+    /* --------------------
+       Kick off
+    -------------------- */
+    document.addEventListener('DOMContentLoaded', runBootAndInit);
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+###############################################################################
+#                        Abhishek Akanksha Mridul Suraj                       #									 
+###############################################################################                                              
+
+
+###############################################################################
+#                          🚀 BASIC SERVICE MONITORING                        #
+###############################################################################
+
+# --- SSH ---
+alert tcp any any -> any 22 (msg:"SSH Connection Attempt (to port 22)"; sid:1000001; rev:1;)
+alert tcp any 22 -> any any (msg:"SSH Response (from port 22)"; sid:1000002; rev:1;)
+
+# --- FTP ---
+alert tcp any any -> any 21 (msg:"FTP Connection Attempt (to port 21)"; sid:1000003; rev:1;)
+alert tcp any 21 -> any any (msg:"FTP Response (from port 21)"; sid:1000004; rev:1;)
+
+# --- DNS ---
+alert udp any any -> any 53 (msg:"DNS Query (to port 53)"; sid:1000009; rev:1;)
+alert udp any 53 -> any any (msg:"DNS Response (from port 53)"; sid:1000010; rev:1;)
+
+# --- SMTP (Email Sending) ---
+alert tcp any any -> any 25 (msg:"SMTP Email Outbound (to port 25)"; sid:1000011; rev:1;)
+alert tcp any 25 -> any any (msg:"SMTP Email Response (from port 25)"; sid:1000012; rev:1;)
+
+# --- POP3 (Email Retrieval) ---
+alert tcp any any -> any 110 (msg:"POP3 Email Retrieval (to port 110)"; sid:1000013; rev:1;)
+alert tcp any 110 -> any any (msg:"POP3 Response (from port 110)"; sid:1000014; rev:1;)
+
+# --- IMAP ---
+alert tcp any any -> any 143 (msg:"IMAP Email Retrieval (to port 143)"; sid:1000015; rev:1;)
+alert tcp any 143 -> any any (msg:"IMAP Response (from port 143)"; sid:1000016; rev:1;)
+
+# --- RDP (Remote Desktop) ---
+alert tcp any any -> any 3389 (msg:"RDP Connection Attempt (to port 3389)"; sid:1000017; rev:1;)
+alert tcp any 3389 -> any any (msg:"RDP Response (from port 3389)"; sid:1000018; rev:1;)
+
+# --- MySQL ---
+alert tcp any any -> any 3306 (msg:"MySQL Connection Attempt (to port 3306)"; sid:1000019; rev:1;)
+alert tcp any 3306 -> any any (msg:"MySQL Response (from port 3306)"; sid:1000020; rev:1;)
+
+# --- PostgreSQL ---
+alert tcp any any -> any 5432 (msg:"PostgreSQL Connection Attempt (to port 5432)"; sid:1000021; rev:1;)
+alert tcp any 5432 -> any any (msg:"PostgreSQL Response (from port 5432)"; sid:1000022; rev:1;)
+
+
+###############################################################################
+#                         🛡️ WEB APP ATTACK DETECTIONS                       #
+#                  (Focus: login.php & dashboard.php)                        #
+###############################################################################
+
+# ======================= Inbound (Requests TO Server) ========================
+
+alert http any any -> $HOME_NET any (msg:"SQL Injection attempt on login.php"; http.uri; content:"login.php"; nocase; pcre:"/(\%27)|(\')|(\-\-)|(\%23)|(#)/i"; sid:2000017; rev:1;)
+alert http any any -> $HOME_NET any (msg:"XSS attempt on login.php"; http.uri; content:"login.php"; nocase; pcre:"/<script.*?>.*?<\/script>/i"; sid:2000018; rev:1;)
+alert http any any -> $HOME_NET any (msg:"LFI attempt on dashboard.php"; http.uri; content:"dashboard.php"; nocase; pcre:"/\.\.\/|\.\.\\\\/"; sid:2000019; rev:1;)
+alert http any any -> $HOME_NET any (msg:"RFI attempt on dashboard.php"; http.uri; content:"dashboard.php"; nocase; pcre:"/http[s]?:\/\/.*\?/i"; sid:2000020; rev:1;)
+alert http any any -> $HOME_NET any (msg:"Directory traversal attempt"; http.uri; pcre:"/\.\.\/|\.\.\\\\/"; sid:2000021; rev:1;)
+alert http any any -> $HOME_NET any (msg:"Command injection attempt on login.php"; http.uri; content:"login.php"; nocase; pcre:"/(\||\&\&|\;|\$\(.*\))/"; sid:2000022; rev:1;)
+
+# ======================= Outbound (Responses FROM Server) ====================
+
+alert http $HOME_NET any -> any any (msg:"SQL Injection response on login.php"; http.response_body; pcre:"/SQL syntax/i"; sid:2000023; rev:1;)
+alert http $HOME_NET any -> any any (msg:"XSS response on login.php"; http.response_body; pcre:"/<script.*?>.*?<\/script>/i"; sid:2000024; rev:1;)
+alert http $HOME_NET any -> any any (msg:"LFI response on dashboard.php"; http.response_body; pcre:"/\.\.\/|\.\.\\\\/"; sid:2000025; rev:1;)
+alert http $HOME_NET any -> any any (msg:"RFI response on dashboard.php"; http.response_body; pcre:"/http[s]?:\/\/.*\?/i"; sid:2000026; rev:1;)
+alert http $HOME_NET any -> any any (msg:"Directory traversal response"; http.response_body; pcre:"/\.\.\/|\.\.\\\\/"; sid:2000027; rev:1;)
+alert http $HOME_NET any -> any any (msg:"Command injection response on login.php"; http.response_body; pcre:"/(\||\&\&|\;|\$\(.*\))/"; sid:2000028; rev:1;)
+
+###############################################################################
+#                     📌 END OF CUSTOM SURICATA RULESET                       #
+###############################################################################

@@ -1,6 +1,4 @@
-# Group 2 Internship — Infotact Solutions
-
-# Suricata + PHP Test Lab
+# Suricata + PHP Test Lab (self devloped)
 
 A small, reproducible lab to run **Suricata IDS** against a couple of PHP webpages and quickly generate test traffic (SQLi/XSS/malware download/Telnet/FTP/etc.).
 

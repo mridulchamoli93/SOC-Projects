@@ -1,0 +1,137 @@
+📄 Incident Response Report
+
+Title: Ransomware Attack Detection & Response Using Splunk
+Environment: Kali Linux (Attacker) | Ubuntu 22.04 (Victim)
+Framework Reference: MITRE ATT&CK
+
+1. Executive Summary
+
+A simulated ransomware attack was successfully executed in a controlled Linux lab environment using an adversary emulation framework. The attack established persistence via cron jobs, encrypted victim files using OpenSSL, and deployed a ransom note. Logs were ingested into Splunk SIEM where real-time alerts detected both persistence and ransomware activity. The incident was investigated, contained, and victim data was successfully recovered using a decryption script.
+
+2. Lab Architecture
+
+Attacker Machine:
+
+Kali Linux
+
+CALDERA Server
+
+Splunk SIEM
+
+Victim Machine:
+
+Ubuntu 22.04
+
+Sandcat Agent
+
+Splunk Universal Forwarder
+
+Data Flow:
+Ubuntu logs (/var/log/syslog, /var/log/auth.log) → Splunk Forwarder → Splunk SIEM
+
+3. Attack Simulation Overview
+3.1 Initial Access & Command Execution
+
+Remote command execution achieved through CALDERA agent
+
+MITRE Technique: T1059 – Command and Scripting Interpreter
+
+3.2 Persistence Established
+
+Cron job created to execute malicious command every minute
+
+Command:
+
+echo persistence-active >> /tmp/persist.log
+
+
+MITRE Technique: T1053 – Scheduled Task/Job (Cron)
+
+3.3 Ransomware Impact
+
+Files encrypted using OpenSSL with .locked extensions
+
+Ransom note README_RESTORE.txt deployed
+
+Original files deleted
+
+MITRE Technique: T1486 – Data Encrypted for Impact
+
+4. Detection & Alerting (Splunk SIEM)
+4.1 Persistence Detection Rule
+index=* host=ubantu "CRON" "persistence-active"
+
+
+Alert Name: Suspicious Root Cron Persistence – T1053
+Trigger: Real-time, if results > 0
+
+✅ Repeated root cron executions detected successfully.
+
+4.2 Ransomware Activity Detection Rule
+index=* host=ubantu ("README_RESTORE" OR ".locked" OR "openssl")
+
+
+Alert Name: Potential Ransomware Encryption Activity – T1486
+Trigger: Real-time, if results > 0
+
+✅ OpenSSL crypto behavior and ransomware artifacts detected.
+
+5. Incident Investigation
+Indicators of Compromise (IOCs)
+
+/etc/cron.d/persist_test
+
+/tmp/persist.log
+
+.locked encrypted files
+
+README_RESTORE.txt ransom note
+
+Root-level CRON executions
+
+Log Sources Used
+
+/var/log/syslog
+
+/var/log/auth.log
+
+6. Containment & Eradication
+
+Actions taken:
+
+Disabled malicious cron job
+
+Removed persistence file
+
+Verified no further CRON execution
+
+Terminated malicious processes
+
+7. Recovery
+
+Decryption script executed
+
+All encrypted files restored successfully
+
+Victim directory verified clean
+
+System returned to operational state
+
+8. MITRE ATT&CK Mapping
+Technique ID	Description
+T1059	Command & Script Execution
+T1053	Scheduled Task / Cron Persistence
+T1486	Data Encrypted for Impact
+9. Lessons Learned
+
+Cron persistence is highly stealthy and requires behavioral detection
+
+Ransomware encryption may not always log file operations directly
+
+SIEM correlation is critical for early threat detection
+
+File integrity monitoring and EDR would further strengthen defense
+
+10. Conclusion
+
+This project successfully demonstrated a full ransomware lifecycle including attack execution, log ingestion, detection engineering, incident investigation, containment, and recovery using real SIEM alerts. The lab mirrors real-world SOC operations and proves hands-on detection and response capability.
